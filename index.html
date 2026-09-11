@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="CEA Cards">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<title>CEA Cards</title>
+</head>
+<body>
+<div id="app">
+<header class="topbar">
+  <div><div class="eyebrow">CEA · TOP QUARTILE</div><h1>CEA Cards</h1></div>
+  <button id="installBtn" class="ghost small" type="button">Installer</button>
+</header>
+
+<main>
+<section id="view-decks" class="view active">
+  <div class="hero">
+    <div>
+      <span class="hero-kicker">250 cartes · Annales 2023–2025</span>
+      <h2>Révise ce qui rapporte des points.</h2>
+      <p>Scheduler adaptatif basé sur stabilité, difficulté et probabilité de rappel.</p>
+    </div>
+    <div class="hero-actions">
+      <button id="studyAllBtn" class="primary light" type="button">Étudier maintenant</button>
+      <button id="weakBtn" class="secondary-dark" type="button">Faiblesses</button>
+    </div>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric"><span id="dueCount">0</span><small>à revoir</small></div>
+    <div class="metric"><span id="newCount">0</span><small>nouvelles</small></div>
+    <div class="metric"><span id="retentionMini">—</span><small>rétention</small></div>
+    <div class="metric"><span id="masteryMini">—</span><small>maîtrise</small></div>
+  </div>
+
+  <div class="section-head"><h3>Decks</h3><button id="newDeckBtn" class="ghost" type="button">+ Deck</button></div>
+  <div id="deckList" class="deck-list"></div>
+
+  <div class="panel">
+    <h3>Importer</h3>
+    <p class="muted">TXT/TSV : Front · Back · Tags. Les nouvelles cartes sont ajoutées dans un deck séparé.</p>
+    <label class="file-button">Choisir un fichier<input id="tsvImport" type="file" accept=".txt,.tsv,text/plain,text/tab-separated-values"></label>
+  </div>
+</section>
+
+<section id="view-study" class="view">
+  <div class="study-head">
+    <button id="studyBack" class="ghost" type="button">← Decks</button>
+    <div id="studyProgress" class="progress-label">0 / 0</div>
+    <button id="undoBtn" class="ghost" type="button">Annuler</button>
+  </div>
+  <div id="studyEmpty" class="empty hidden">
+    <h2>Session terminée</h2><p>Aucune autre carte dans cette session.</p>
+    <button id="studyEmptyBack" class="primary" type="button">Retour</button>
+  </div>
+  <div id="studyArea">
+    <div class="study-meta"><span id="studyDeckName"></span><span id="studyState"></span></div>
+    <div class="retrieval"><span>Rappel estimé</span><b id="retrievability">—</b></div>
+    <article id="flashcard" class="flashcard" tabindex="0">
+      <div id="cardFront" class="card-face"></div>
+      <div id="cardBack" class="card-face answer hidden"></div>
+    </article>
+    <button id="showAnswerBtn" class="primary wide" type="button">Afficher la réponse</button>
+    <div id="gradeRow" class="grade-row hidden">
+      <button class="grade again" data-grade="1" type="button"><b>Again</b><span id="i1">1m</span></button>
+      <button class="grade hard" data-grade="2" type="button"><b>Hard</b><span id="i2">—</span></button>
+      <button class="grade good" data-grade="3" type="button"><b>Good</b><span id="i3">—</span></button>
+      <button class="grade easy" data-grade="4" type="button"><b>Easy</b><span id="i4">—</span></button>
+    </div>
+    <div class="keyboard-hint">Espace = réponse · 1/2/3/4 = Again/Hard/Good/Easy</div>
+  </div>
+</section>
+
+<section id="view-browse" class="view">
+  <div class="section-head"><h2>Cartes</h2><button id="addCardBtn" class="primary" type="button">+ Carte</button></div>
+  <div class="filters">
+    <input id="searchCards" class="search" type="search" placeholder="Rechercher…">
+    <select id="deckFilter" class="select"><option value="">Tous les decks</option></select>
+  </div>
+  <div id="cardList" class="card-list"></div>
+</section>
+
+<section id="view-stats" class="view">
+  <h2>Statistiques</h2>
+  <div class="metric-grid stats">
+    <div class="metric"><span id="studiedToday">0</span><small>aujourd'hui</small></div>
+    <div class="metric"><span id="retention">—</span><small>rétention</small></div>
+    <div class="metric"><span id="streak">0</span><small>série</small></div>
+    <div class="metric"><span id="mastery">—</span><small>maîtrise</small></div>
+  </div>
+  <div class="panel">
+    <h3>Maîtrise par deck</h3>
+    <div id="deckMastery" class="bars"></div>
+  </div>
+  <div class="panel">
+    <h3>Intervalles</h3>
+    <div id="intervalBars" class="bars"></div>
+  </div>
+  <div class="panel">
+    <h3>Scheduler</h3>
+    <label>Rétention cible
+      <select id="targetRetention">
+        <option value="0.85">85 % · moins de révisions</option>
+        <option value="0.90">90 % · recommandé</option>
+        <option value="0.92">92 %</option>
+        <option value="0.95">95 % · intensif concours</option>
+      </select>
+    </label>
+    <label>Nouvelles cartes / jour<input id="newLimit" type="number" min="0" max="250"></label>
+    <label>Révisions / jour<input id="reviewLimit" type="number" min="0" max="9999"></label>
+    <button id="saveSettings" class="primary" type="button">Enregistrer</button>
+  </div>
+  <div class="panel">
+    <h3>Sauvegarde</h3>
+    <div class="row">
+      <button id="exportBtn" class="ghost" type="button">Exporter JSON</button>
+      <label class="file-button compact">Restaurer JSON<input id="restoreInput" type="file" accept=".json,application/json"></label>
+    </div>
+  </div>
+</section>
+</main>
+
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="decks" type="button">Decks</button>
+  <button class="nav-btn" data-view="study" type="button">Étudier</button>
+  <button class="nav-btn" data-view="browse" type="button">Cartes</button>
+  <button class="nav-btn" data-view="stats" type="button">Stats</button>
+</nav>
+</div>
+
+<dialog id="cardDialog">
+<form method="dialog" id="cardForm">
+<h3 id="cardDialogTitle">Nouvelle carte</h3>
+<input id="editCardId" type="hidden">
+<label>Deck<select id="cardDeck"></select></label>
+<label>Recto<textarea id="frontInput" rows="4" required></textarea></label>
+<label>Verso<textarea id="backInput" rows="5" required></textarea></label>
+<label>Tags<input id="tagsInput" type="text"></label>
+<div class="dialog-actions">
+<button id="deleteCardBtn" class="danger hidden" type="button">Supprimer</button>
+<button class="ghost" value="cancel">Annuler</button>
+<button id="saveCardBtn" class="primary" value="default">Enregistrer</button>
+</div>
+</form>
+</dialog>
+
+<dialog id="deckDialog"><form method="dialog" id="deckForm">
+<h3>Nouveau deck</h3><label>Nom<input id="deckNameInput" required></label>
+<div class="dialog-actions"><button class="ghost" value="cancel">Annuler</button><button class="primary" value="default">Créer</button></div>
+</form></dialog>
+
+<dialog id="installDialog"><div class="dialog-body">
+<h3>Installer sur iPhone</h3>
+<ol><li>Héberge ce dossier sur GitHub Pages ou un autre hébergeur HTTPS.</li><li>Ouvre l'adresse dans Safari.</li><li>Partager → <b>Sur l'écran d'accueil</b>.</li><li>Ouvre CEA Cards comme une app.</li></ol>
+<button id="closeInstall" class="primary wide" type="button">OK</button>
+</div></dialog>
+
+<script src="starter_cards.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
