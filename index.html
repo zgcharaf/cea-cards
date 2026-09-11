@@ -125,6 +125,97 @@
     </div>
   </div>
 </section>
+
+<section id="view-annales" class="view">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">MODE EXAMEN · SOURCES OFFICIELLES IRM</div>
+      <h2>Annales CEA</h2>
+    </div>
+  </div>
+
+  <div id="annalesHome">
+    <div class="panel exam-intro">
+      <h3>Simulation dans les conditions du concours</h3>
+      <p class="muted">Sujet officiel IRM, feuille-réponse dans l'app, compte à rebours de 3 heures, marquage des questions et sauvegarde automatique.</p>
+      <p class="muted"><b>Rigueur :</b> l'IRM indique que les corrigés ne sont pas fournis. L'app ne présente donc aucune clé comme « officielle » si elle ne l'est pas.</p>
+    </div>
+    <div id="examYearList" class="exam-year-list"></div>
+
+    <div class="panel">
+      <h3>Historique des tentatives</h3>
+      <div id="attemptHistory" class="attempt-history"></div>
+    </div>
+  </div>
+
+  <div id="examRunner" class="hidden">
+    <div class="exam-runner-head">
+      <button id="examExitBtn" class="ghost" type="button">← Annales</button>
+      <div>
+        <div id="examYearTitle" class="exam-title"></div>
+        <div id="examTimer" class="exam-timer">03:00:00</div>
+      </div>
+      <button id="examSubmitBtn" class="primary" type="button">Terminer</button>
+    </div>
+
+    <div class="exam-source-panel">
+      <div>
+        <b>Sujet officiel</b>
+        <div class="muted" id="examSourceNote"></div>
+      </div>
+      <a id="officialPdfLink" class="primary pdf-link" target="_blank" rel="noopener">Ouvrir le PDF officiel</a>
+    </div>
+
+    <div class="exam-progress-wrap">
+      <div class="exam-progress-bar"><div id="examProgressFill"></div></div>
+      <div id="examProgressText" class="muted"></div>
+    </div>
+
+    <div class="exam-toolbar">
+      <button id="prevExamQuestion" class="ghost" type="button">← Précédente</button>
+      <select id="examSectionSelect" class="select compact-select">
+        <option value="all">Toutes les matières</option>
+        <option value="finance">Finance</option>
+        <option value="stats">Statistiques</option>
+        <option value="nonvie">Non-vie</option>
+        <option value="vie">Vie</option>
+      </select>
+      <button id="flagQuestionBtn" class="ghost" type="button">⚐ Marquer</button>
+      <button id="nextExamQuestion" class="ghost" type="button">Suivante →</button>
+    </div>
+
+    <div class="exam-question-card">
+      <div class="exam-q-top">
+        <span id="examQuestionNumber">Question 1 / 56</span>
+        <span id="examQuestionSection" class="pill">Finance</span>
+      </div>
+      <p class="exam-instruction">Lis la question correspondante dans le sujet officiel, puis saisis ta réponse ici.</p>
+
+      <div class="exam-answer-choices">
+        <label><input type="radio" name="examAnswer" value="A"><span>A</span></label>
+        <label><input type="radio" name="examAnswer" value="B"><span>B</span></label>
+        <label><input type="radio" name="examAnswer" value="C"><span>C</span></label>
+        <label><input type="radio" name="examAnswer" value="D"><span>D</span></label>
+        <label><input type="radio" name="examAnswer" value="E"><span>E</span></label>
+      </div>
+      <button id="clearExamAnswer" class="ghost small" type="button">Effacer la réponse</button>
+    </div>
+
+    <div class="exam-grid-wrap">
+      <div class="exam-grid-label">Feuille-réponse</div>
+      <div id="examQuestionGrid" class="exam-question-grid"></div>
+    </div>
+  </div>
+
+  <dialog id="examResultDialog">
+    <div class="dialog-body">
+      <h3>Résultat de la tentative</h3>
+      <div id="examResultBody"></div>
+      <button id="closeExamResult" class="primary wide" type="button">Fermer</button>
+    </div>
+  </dialog>
+</section>
+
 </main>
 
 <nav class="bottom-nav">
@@ -132,6 +223,7 @@
   <button class="nav-btn" data-view="study" type="button">Étudier</button>
   <button class="nav-btn" data-view="browse" type="button">Cartes</button>
   <button class="nav-btn" data-view="stats" type="button">Stats</button>
+      <button class="nav-btn" data-view="annales" type="button">Annales</button>
 </nav>
 </div>
 

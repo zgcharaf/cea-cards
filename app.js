@@ -196,5 +196,75 @@ $("#exportBtn").addEventListener("click",exportBackup);$("#restoreInput").addEve
 $("#installBtn").addEventListener("click",()=>$("#installDialog").showModal());$("#closeInstall").addEventListener("click",()=>$("#installDialog").close());
 window.addEventListener("keydown",e=>{if(!$("#view-study").classList.contains("active")||e.target.matches("input,textarea,select"))return;if(e.code==="Space"&&!study.revealed){e.preventDefault();reveal()}if(study.revealed&&/^Digit[1-4]$/.test(e.code))grade(Number(e.code.slice(-1)))});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+
+// ===== Official annales exam mode =====
+const EXAM_KEY="cea_cards_exam_state_v1";
+const OFFICIAL_EXAMS=[
+ {year:2023,date:"26 septembre 2023",questions:56,pdf:"https://www.institut-du-risk-management.fr/wp-content/uploads/2024/02/Sujet-QCM-2023.pdf",note:"Sujet officiel IRM — QCM de sélection 2023",sectionOrder:["finance","vie","stats","nonvie"]},
+ {year:2024,date:"24 septembre 2024",questions:56,pdf:"https://www.institut-du-risk-management.fr/wp-content/uploads/2025/04/Annales-QCM-CEA-2025.pdf",note:"Sujet officiel IRM — épreuve du 24 septembre 2024",sectionOrder:["finance","stats","nonvie","vie"]},
+ {year:2025,date:"23 septembre 2025",questions:56,pdf:"https://www.institut-du-risk-management.fr/wp-content/uploads/2026/04/Sujet-QCM-2025.pdf",note:"Sujet officiel IRM — QCM de sélection 2025",sectionOrder:["finance","stats","nonvie","vie"]}
+];
+const SECTION_NAMES={finance:"Maths financières",stats:"Statistiques",nonvie:"Non-vie",vie:"Vie"};
+let examStore=(()=>{try{return JSON.parse(localStorage.getItem(EXAM_KEY)||'{"attempts":[],"drafts":{}}')}catch(e){return {attempts:[],drafts:{}}}})();
+const saveExamStore=()=>localStorage.setItem(EXAM_KEY,JSON.stringify(examStore));
+let examSession=null,examTimerHandle=null;
+
+function examSectionFor(exam,q){return exam.sectionOrder[Math.min(3,Math.floor((q-1)/14))]}
+function renderAnnalesHome(){
+ if(!$("#examYearList"))return;
+ $("#annalesHome").classList.remove("hidden");$("#examRunner").classList.add("hidden");
+ if(examTimerHandle){clearInterval(examTimerHandle);examTimerHandle=null}
+ $("#examYearList").innerHTML=OFFICIAL_EXAMS.map(e=>{
+   const d=examStore.drafts[String(e.year)],answered=d?Object.values(d.answers||{}).filter(Boolean).length:0;
+   return `<div class="exam-year-card"><div><h3>Annale ${e.year}</h3><p>${e.date} · 3 h · ${e.questions} questions</p><div class="exam-year-meta"><span class="pill">4 matières</span><span class="pill">${answered?answered+" réponses sauvegardées":"nouvelle tentative"}</span></div></div><button class="primary start-official-exam" data-year="${e.year}" type="button">${answered?"Reprendre":"Commencer"}</button></div>`
+ }).join("");
+ $$(".start-official-exam").forEach(b=>b.addEventListener("click",()=>startOfficialExam(Number(b.dataset.year))));
+ const hist=examStore.attempts.slice().reverse();
+ $("#attemptHistory").innerHTML=hist.length?hist.map(a=>`<div class="attempt-row"><div><b>${a.year}</b> · ${new Date(a.submittedAt).toLocaleDateString("fr-FR")}<br><span class="muted">${a.answered}/${a.total} répondues · ${formatExamDuration(a.elapsedMs)}</span></div><div>${a.scoreText||"—"}</div></div>`).join(""):'<div class="muted">Aucune tentative terminée.</div>';
+}
+function startOfficialExam(year){
+ const ex=OFFICIAL_EXAMS.find(e=>e.year===year);if(!ex)return;
+ const saved=examStore.drafts[String(year)];
+ examSession=saved&&saved.startedAt?JSON.parse(JSON.stringify(saved)):{year,startedAt:now(),answers:{},flags:{},current:1};
+ examSession.year=year;
+ $("#annalesHome").classList.add("hidden");$("#examRunner").classList.remove("hidden");
+ $("#examYearTitle").textContent="Annale "+year;$("#officialPdfLink").href=ex.pdf;$("#examSourceNote").textContent=ex.note;
+ bindExamRunner();renderExamQuestion();startExamClock();
+}
+function bindExamRunner(){
+ const r=$("#examRunner");if(r.dataset.bound==="1")return;r.dataset.bound="1";
+ $("#examExitBtn").addEventListener("click",()=>{saveExamDraft();renderAnnalesHome()});
+ $("#prevExamQuestion").addEventListener("click",()=>moveExam(-1));$("#nextExamQuestion").addEventListener("click",()=>moveExam(1));
+ $("#flagQuestionBtn").addEventListener("click",()=>{const q=examSession.current;examSession.flags[q]=!examSession.flags[q];saveExamDraft();renderExamQuestion()});
+ $("#clearExamAnswer").addEventListener("click",()=>{delete examSession.answers[examSession.current];saveExamDraft();renderExamQuestion()});
+ $$('input[name="examAnswer"]').forEach(inp=>inp.addEventListener("change",()=>{examSession.answers[examSession.current]=inp.value;saveExamDraft();renderExamProgress();renderExamGrid()}));
+ $("#examSubmitBtn").addEventListener("click",()=>submitOfficialExam(false));
+ $("#closeExamResult").addEventListener("click",()=>$("#examResultDialog").close());
+ $("#examSectionSelect").addEventListener("change",()=>{const s=$("#examSectionSelect").value;if(s==="all")return;const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year);for(let q=1;q<=ex.questions;q++)if(examSectionFor(ex,q)===s){examSession.current=q;renderExamQuestion();break}});
+}
+function saveExamDraft(){if(!examSession)return;examStore.drafts[String(examSession.year)]=examSession;saveExamStore()}
+function moveExam(d){const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year);examSession.current=Math.max(1,Math.min(ex.questions,examSession.current+d));saveExamDraft();renderExamQuestion()}
+function renderExamQuestion(){
+ const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year),q=examSession.current,sec=examSectionFor(ex,q);
+ $("#examQuestionNumber").textContent=`Question ${q} / ${ex.questions}`;$("#examQuestionSection").textContent=SECTION_NAMES[sec];
+ $$('input[name="examAnswer"]').forEach(inp=>inp.checked=examSession.answers[q]===inp.value);
+ $("#flagQuestionBtn").textContent=examSession.flags[q]?"⚑ Marquée":"⚐ Marquer";$("#prevExamQuestion").disabled=q===1;$("#nextExamQuestion").disabled=q===ex.questions;
+ renderExamProgress();renderExamGrid();
+}
+function renderExamProgress(){const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year),n=Object.values(examSession.answers).filter(Boolean).length;$("#examProgressFill").style.width=(100*n/ex.questions)+"%";$("#examProgressText").textContent=`${n}/${ex.questions} réponses · ${ex.questions-n} sans réponse`}
+function renderExamGrid(){const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year),g=$("#examQuestionGrid");g.innerHTML="";for(let q=1;q<=ex.questions;q++){const b=document.createElement("button");b.type="button";b.className="exam-q-btn";b.textContent=q;if(examSession.answers[q])b.classList.add("answered");if(examSession.flags[q])b.classList.add("flagged");if(q===examSession.current)b.classList.add("current");b.addEventListener("click",()=>{examSession.current=q;saveExamDraft();renderExamQuestion()});g.appendChild(b)}}
+function startExamClock(){if(examTimerHandle)clearInterval(examTimerHandle);const tick=()=>{if(!examSession)return;const rem=Math.max(0,10800000-(now()-examSession.startedAt));$("#examTimer").textContent=formatExamDuration(rem);if(rem<=0){clearInterval(examTimerHandle);examTimerHandle=null;submitOfficialExam(true)}};tick();examTimerHandle=setInterval(tick,1000)}
+function formatExamDuration(ms){ms=Math.max(0,ms);const t=Math.floor(ms/1000),h=Math.floor(t/3600),m=Math.floor((t%3600)/60),s=t%60;return [h,m,s].map(x=>String(x).padStart(2,"0")).join(":")}
+function submitOfficialExam(auto){
+ if(!examSession)return;const ex=OFFICIAL_EXAMS.find(e=>e.year===examSession.year),answered=Object.values(examSession.answers).filter(Boolean).length,elapsed=now()-examSession.startedAt;
+ if(!auto&&!confirm(`Terminer l'annale ${ex.year} ? ${answered}/${ex.questions} questions répondues.`))return;
+ const attempt={id:uid(),year:ex.year,submittedAt:now(),startedAt:examSession.startedAt,elapsedMs:elapsed,total:ex.questions,answered,answers:examSession.answers,flags:examSession.flags,scoreText:"Corrigé officiel non publié"};
+ examStore.attempts.push(attempt);delete examStore.drafts[String(ex.year)];saveExamStore();if(examTimerHandle){clearInterval(examTimerHandle);examTimerHandle=null}
+ $("#examResultBody").innerHTML=`<div class="result-score-grid"><div class="result-score"><b>${answered}</b><span>répondues</span></div><div class="result-score"><b>${ex.questions-answered}</b><span>blanches</span></div><div class="result-score"><b>${formatExamDuration(elapsed).slice(0,5)}</b><span>temps</span></div></div><div class="result-note"><b>Pas de faux « corrigé officiel » :</b> l'IRM ne publie pas de correction. Tes réponses sont conservées. Si tu disposes d'une clé fiable, colle-la ci-dessous pour calculer le score automatiquement.</div><div class="manual-key-box"><p class="muted">Clé attendue : 56 lettres A–E. Espaces, virgules et retours à la ligne sont ignorés.</p><textarea id="manualAnswerKey" placeholder="Ex. A B C ..."></textarea><button id="scoreWithManualKey" class="primary wide" type="button">Calculer le score</button><div id="manualScoreResult"></div></div>`;
+ $("#examResultDialog").showModal();
+ setTimeout(()=>$("#scoreWithManualKey")?.addEventListener("click",()=>{const raw=$("#manualAnswerKey").value.toUpperCase().replace(/[^A-E]/g,"");if(raw.length!==ex.questions){$("#manualScoreResult").innerHTML=`<p class="muted">Clé invalide : ${raw.length}/${ex.questions} lettres détectées.</p>`;return}let score=0;const sec={finance:[0,0],stats:[0,0],nonvie:[0,0],vie:[0,0]};for(let q=1;q<=ex.questions;q++){const s=examSectionFor(ex,q);sec[s][1]++;if((attempt.answers[q]||"")===raw[q-1]){score++;sec[s][0]++}}attempt.score=score;attempt.scoreText=`${score}/${ex.questions} (${Math.round(100*score/ex.questions)}%)`;saveExamStore();$("#manualScoreResult").innerHTML=`<div class="result-score-grid"><div class="result-score"><b>${score}/${ex.questions}</b><span>score</span></div><div class="result-score"><b>${Math.round(100*score/ex.questions)}%</b><span>réussite</span></div><div class="result-score"><b>${ex.questions-score}</b><span>erreurs/blanches</span></div></div><div class="result-note">${Object.entries(sec).map(([s,v])=>`${SECTION_NAMES[s]} : <b>${v[0]}/${v[1]}</b>`).join("<br>")}</div>`}),0);
+ examSession=null;
+}
+
 renderDecks();
 })();
